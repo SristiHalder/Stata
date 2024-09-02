@@ -1,0 +1,242 @@
+/*
+Author: Sristi Halder
+Date: June 7, 2024
+Purpose: Understanding Basic Stata Functions
+*/
+
+* Preamble: always include
+clear all
+set more off
+
+* Change my working directory to my folder
+cd "/Users/SristiHalder/Dropbox/Mac/Documents/Summer 2024/EDE/StataCode"
+
+* Bring in Stata data file and save a new version
+use testfile.dta, clear
+save testfile_alt.dta, replace
+
+* Bring in Excel data file
+import excel using testexcel.xlsx, sheet("Sheet1") firstrow clear
+
+* Bring in CSV data file
+import delimited using testcsv.csv, clear
+
+* Bring in example data
+use auto.dta, clear
+
+* Describe the data set
+describe
+
+* Summarize all variables in data set
+summarize
+
+* Summarize only price and mpg
+summ price mpg
+
+* Summ with more detail
+summ price, detail
+
+* Summarize price only for foreign cars
+summ price if foreign==1
+
+* Summarizing price mpg by foreign status
+tabstat price mpg, by(foreign)
+
+* Other way of doing it
+table foreign, stat(mean price mpg)
+
+* By rows then by columns
+table (foreign) (var), stat(mean price mpg)
+table (var) (foreign), stat(mean price mpg) 
+
+* Make new variables
+gen inAutoDataSet = 1	// Equal to 1 for everyone
+gen weight_kgs = 0.454 * weight	// Weight in kgs
+
+* Indicator for mpg over 25
+gen mpgOver25 = .
+replace mpgOver25 = 0 if mpg < 25
+replace mpgOver25 = 1 if mpg >= 25
+
+* Indicator in easier way
+gen mpgOver30 = (mpg >= 30)
+
+* Save and then keep/drop variables
+save auto_test.dta, replace
+drop headroom
+keep price make mpg
+
+* Keep/drop observations
+keep if mpg > 20
+summ mpg
+
+drop if price < 5000 | price > 10000
+summ price
+
+----------------------------------------------------------
+
+* Preamble: always include!
+clear all
+set more off
+
+* Change my working directory to my EDE folder
+cd "/Users/SristiHalder/Dropbox/Mac/Documents/Summer 2024/EDE/Code"
+
+* Wrong way to load
+import excel using Jollof.xlsx, clear
+
+* Right way to load: restricting range
+import excel using Jollof.xlsx, cellrange(A4:C23) firstrow clear
+
+* Rename variable to make it easier to read
+rename BlindTestSelection choice
+
+* Replace choice in two different ways
+replace choice = subinstr(choice, "Ghna", "Ghana",.)
+replace choice = "Nigeria" if choice=="Nigerial"
+
+* Add label to choice variable
+label var choice "Which country's Jollof rice they prefer"
+
+* Convert age to a string and then destring it
+tostring Age, replace
+destring Age, replace
+
+* Change Age to missing for the outliers
+replace Age=. if (Age==999 | Age==1)
+
+********************************************************************************
+
+/*
+	Chicago Employees Exercise
+*/
+
+* Load in data
+import excel using ChicagoEmployees.xlsx, cellrange(A4:H30901) firstrow clear
+
+* Tabulate the departments, looking for outliers
+tab Department
+
+* Summarize the annual salary with detail, seeing if we see any outliers
+summ AnnualSalary, detail
+
+* Same with hours worked and hourly rate
+summ TypicalHours HourlyRate, detail
+
+* What's up with people making $4/hour?
+browse if HourlyRate==4
+
+* Make Annual Income variable. Assume that hourly workers work for 50 weeks per year
+* and that they always work the typical number of hours. Also assumes that hourly
+* rate doesn't change over the year.
+gen AnnualIncome = .
+replace AnnualIncome = AnnualSalary if SalaryorHourly=="SALARY"
+replace AnnualIncome = 50 * TypicalHours * HourlyRate if SalaryorHourly=="HOURLY"
+
+*** Summary stats
+* Overall average annual income
+summ AnnualIncome
+
+* Breakdown by salary or hourly
+table SalaryorHourly, stat(mean AnnualIncome)
+
+* Breakdown by part or full-time
+table FullorPartTime, stat(mean AnnualIncome)
+
+* Total is off for part/full-time breakdown, why? Missing for one person!
+tab FullorPartTime
+
+********************************************************************************
+
+* Bring in data from online
+use https://stats.idre.ucla.edu/stat/data/hs0, clear
+
+* Z-score of math
+egen zmath = std(math)
+summ zmath
+
+* Take the total of the math scores (unclear why you would want this in this case)
+egen TotalMath = sum(math)
+
+* Take the average of the math scores (more sensible)
+egen MeanMath = mean(math)
+
+* Take total of all scores
+egen TotalScores = rowtotal(math read science socst write)
+
+* Take mean of all scores
+egen MeanScores = rowmean(math read science socst write)
+
+* Take mean of reading by gender
+egen MeanReadGender = mean(read), by(gender)
+
+* Basic histogram of writing
+histogram write
+graph export writing_histogram_basic.png, replace
+
+* Changing options
+histogram write, normal
+histogram write, normal width(5)
+
+* Only doing histogram for females
+histogram write if gender==2, normal width(5)
+
+* Frequency by ses and gender, separately
+graph bar (count), over(ses)
+graph bar (count), over(gender)
+
+* The gender isn't labeled, let's define it
+label define genderlabel 1 "Male" 2 "Female"
+label values gender genderlabel
+
+* Try the gender bar chart again
+graph bar (count), over(gender)
+
+* Frequency by ses and gender, at the same time
+graph bar (count), over(ses) over(gender) asyvars
+
+* Graph mean of each test score
+graph bar math read science socst write
+
+* Looks bad, let's add spacing
+graph bar math read science socst write, bargap(100)
+
+* Mess around with other options
+graph bar math read science socst write, title("Mean of Exam Scores by Subject Type") ytitle("Exam Score") ///
+	blabel(total) bargap(100)
+
+* Break it down by gender
+graph bar math read science socst write, over(gender)
+
+* Box plot for each exam
+graph box read write math science socst
+
+* Scatter plot of writing vs reading scores
+scatter write read
+
+* Add some options for coloring
+scatter write read, color(black) graphregion(color(white))
+
+* Line plot of the same thing
+twoway line write read
+twoway line write read, sort
+
+* Line plot of both writing and science against reading. Puts writing in solid and
+* science in dashed lines
+twoway line write science read, sort lpattern(solid dash)
+
+* Scatter plot of write and read with linear fit
+twoway (scatter write read) (lfit write read)
+
+* Scatter plot of write and read for males and females separately
+twoway (scatter write read if gender == 1, mcolor(blue)) ///
+	(scatter write read if gender == 2, mcolor(red))
+	
+* Add legend
+twoway (scatter write read if gender == 1, mcolor(blue)) ///
+	(scatter write read if gender == 2, mcolor(red)), ///
+	legend(label(1 Male) label(2 Female))
+	
+* Show two y-variables at once
+twoway (scatter write read, mcolor(blue)) ///
+	(scatter science read, mcolor(red) yaxis(2))
